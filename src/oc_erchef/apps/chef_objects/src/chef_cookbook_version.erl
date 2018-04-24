@@ -195,7 +195,7 @@ compress_maybe(Data, Type) ->
 %% @doc Convert a binary JSON string representing a Chef Cookbook Version into an
 %% EJson-encoded Erlang data structure.
 %% @end
--spec parse_binary_json(binary(), {binary(), binary()}, true | false) -> { ok, ejson_term() }. % or throw
+-spec parse_binary_json(binary(), {binary(), binary()}, boolean()) -> { ok, ejson_term() }. % or throw
 parse_binary_json(Bin, {UrlName, UrlVersion}, AllFiles) ->
     %% avoid parsing the cookbook JSON if name or version from URL is invalid
     valid_name(UrlName),
@@ -216,8 +216,8 @@ set_default_values(Cookbook) ->
     chef_object_base:set_default_values(Cookbook, ?DEFAULT_FIELD_VALUES).
 
 -spec validate_cookbook(Cookbook :: ej:json_object(),
-                        {UrlName :: binary(),
-                         UrlVersion :: binary()}, true | false) -> {ok, ej:json_object()}.
+                        {UrlName :: binary(), UrlVersion :: binary()},
+                        AllFiles :: boolean()) -> {ok, ej:json_object()}.
 validate_cookbook(Cookbook, {UrlName, UrlVersion}, AllFiles) when AllFiles =:= false ->
     Spec = cookbook_spec(UrlName, UrlVersion),
     case chef_object_base:strictly_valid(Spec, ?VALID_KEYS, Cookbook) of

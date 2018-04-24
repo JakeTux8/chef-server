@@ -47,7 +47,7 @@ describe "Cookbooks API endpoint", :cookbooks, :cookbooks_conversion do
     let(:request_method) { :PUT }
     shared(:requestor) { admin_user }
     let(:request_url) { api_url("/#{cookbook_url_base}/#{cookbook_name}/#{cookbook_version}") }
-    let(:cookbook_name) { "cookbook_name" }
+    let(:cookbook_name) { "vconv" }
     let(:cookbook_version) { self.class.cookbook_version }
     let(:cookbook_payload) do
       {
@@ -58,8 +58,8 @@ describe "Cookbooks API endpoint", :cookbooks, :cookbooks_conversion do
           "specificity" => "default"
         }],
         "root_files" => [{
-          "name" => "metadata.rb",
-          "path" => "metadata.rb",
+          "name" => "CHANGELOG",
+          "path" => "CHANGELOG",
           "checksum" => checksums[1],
           "specificity" => "default",
         }]
