@@ -691,17 +691,12 @@ remove_segment_from_filename(File) ->
     end.
 
 populate_all_files(Segment, Data, Metadata) ->
-    lists:foldl(fun(File, CB) ->
-                        File1 = case Segment of
-                                    <<"root_files">> ->
-                                        File;
-                                    _ ->
-                                        add_segment_to_filename(Segment, File)
-                                end,
-                        ej:set_p({<<"all_files">>, new}, CB, File1)
-                end,
-                Metadata,
-                Data).
+    ExpandedFiles = case Segment of
+                        <<"root_files">> -> Data;
+                        _ ->
+                            [ add_segment_to_filename(Segment, File) || File <- Data ]
+                    end,
+    ej:set({<<"all_files">>}, Metadata, ExpandedFiles).
 
 %% A v2 cookbook version contains only the "all_files" key, which is a list of all the file parts
 %% { "all_files": [ { "name": "recipes/default.rb", "path": "recipes/default.rb", … } ] }
