@@ -690,52 +690,51 @@ remove_segment_from_filename(File) ->
             { Segment, Record }
     end.
 
-populate_all_files(Segment, Data, Metadata) ->
-    ExpandedFiles = case Segment of
-                        <<"root_files">> -> Data;
-                        _ ->
-                            [ add_segment_to_filename(Segment, File) || File <- Data ]
-                    end,
-    ej:set({<<"all_files">>}, Metadata, ExpandedFiles).
-
 %% A v2 cookbook version contains only the "all_files" key, which is a list of all the file parts
 %% { "all_files": [ { "name": "recipes/default.rb", "path": "recipes/default.rb", … } ] }
 %% We have to transform that into segments (?COOKBOOK_SEGMENTS) containing a list of file parts for that segment
 %% { "recipes": [ { "name": "default.rb", path: "recipes/default.rb", … } ] }
+%%
+%% Note: We silently drop files that land in segments not listed in ?COOKBOOK_SEGMENTS
 populate_segments(Data, Metadata) ->
-    CB1 = lists:foldl(fun(Segment, CB) ->
-                              ej:set({Segment}, CB, [])
-                      end,
-                      Metadata,
-                      ?COOKBOOK_SEGMENTS),
+    BySegment = lists:foldl(fun file_by_segment/2, #{}, Data),
 
-    lists:foldl(fun(File, CB) ->
-                        { Segment, Record } = remove_segment_from_filename(File),
-                        case lists:member(Segment, ?COOKBOOK_SEGMENTS) of
-                            true -> ej:set_p({Segment, new}, CB, Record);
-                            _ -> CB
-                        end
+    lists:foldl(fun(Segment, CB) ->
+                        ej:set({Segment}, CB, maps:get(Segment, BySegment, [] ))
                 end,
-                CB1,
-                Data).
+                Metadata,
+                ?COOKBOOK_SEGMENTS).
 
+file_by_segment(File, Map) ->
+    { Segment, Record } = remove_segment_from_filename(File),
+    case Map of
+        #{ Segment := List } ->
+            Map#{Segment => [Record | List]};
+        _ ->
+            Map#{Segment => [Record]}
+    end.
+
+%% Minor note:
+%% The old populate_all_files code replaced the all_files entry; if there were multiple segments we would end up with only the last
+%% Check test coverage to make sure that makes sense.
 ensure_v2_metadata(Ejson) ->
     case ej:get({<<"all_files">>}, Ejson) of
         undefined ->
-            Ejson1 = ej:set({<<"all_files">>}, Ejson, []),
-            lists:foldl(fun(Segment, CB) ->
-                                case ej:get({Segment}, CB) of
-                                    undefined -> CB;
-                                    Data ->
-                                        CB1 = populate_all_files(Segment, Data, CB),
-                                        ej:delete({Segment}, CB1)
-                                end
-                        end,
+            AllFiles = lists:flatten([ expand_segment(Segment, ej:get({Segment}, Ejson, []) ) || Segment <- ?COOKBOOK_SEGMENTS ] ),
+            Ejson1 = ej:set({<<"all_files">>}, Ejson, AllFiles),
+
+            lists:foldl(fun(Segment, CB) -> ej:delete({Segment}, CB) end,
                         Ejson1,
                         ?COOKBOOK_SEGMENTS);
         _ ->
             Ejson
     end.
+
+expand_segment(<<"root_files">>, Data) ->
+    Data;
+expand_segment(Segment, Data) ->
+    [ add_segment_to_filename(Segment, File) || File <- Data ].
+
 
 ensure_v0_metadata(Ejson) ->
     case ej:get({<<"all_files">>}, Ejson) of
